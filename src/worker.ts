@@ -1,4 +1,5 @@
 import { Router } from 'itty-router';
+import type { ExecutionContext } from '@cloudflare/workers-types';
 import { users } from '../src/data/mockData';
 import { User } from '../src/types';
 
