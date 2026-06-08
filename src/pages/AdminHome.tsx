@@ -33,7 +33,12 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
     setCheckItems,
     deleteCheckItem,
     setDailyTaskIds,
-    getSystems
+    getSystems,
+    systems,
+    addSystem,
+    updateSystem,
+    deleteSystem,
+    addCheckItem
   } = useCheckStore();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
@@ -73,6 +78,10 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
     newPassword: '',
     confirmPassword: ''
   });
+  const [selectedCheckSystem, setSelectedCheckSystem] = useState<string>('');
+  const [showAddSystemModal, setShowAddSystemModal] = useState(false);
+  const [editingSystem, setEditingSystem] = useState<string | null>(null);
+  const [newSystemName, setNewSystemName] = useState('');
 
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [localVehicleTypes, setLocalVehicleTypes] = useState<string[]>(() => {
@@ -88,7 +97,6 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const allTasks = [...localDailyTasks, ...localWeeklyTasks];
   const allUsers = registeredUsers.filter(u => u.role === 'user');
   const todayInviteCode = getTodayInviteCode();
-  const systems = getSystems();
 
   // 动态计算：总检查次数 = 所有记录 itemCount 之和
   const totalChecks = storeCheckRecords.reduce((sum, r) => sum + r.itemCount, 0);
@@ -315,14 +323,18 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   };
 
   const handleSelectAll = () => {
-    if (selectedItems.length === storeCheckItems.length) {
+    const filteredItems = selectedCheckSystem 
+      ? storeCheckItems.filter(item => item.system === selectedCheckSystem)
+      : storeCheckItems;
+    
+    if (selectedItems.length === filteredItems.length && filteredItems.length > 0) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(storeCheckItems.map(item => item.id));
+      setSelectedItems(filteredItems.map(item => item.id));
     }
   };
 
-  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>, defaultSystem?: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -390,8 +402,9 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
           errors.push(`第${rowNum}行：检查序号不能为空`);
           continue;
         }
-        if (!system) {
-          errors.push(`第${rowNum}行：故障系统不能为空`);
+        const finalSystem = system || defaultSystem;
+        if (!finalSystem) {
+          errors.push(`第${rowNum}行：故障系统不能为空，请先选择故障系统或在Excel中填写`);
           continue;
         }
         if (!description) {
@@ -419,7 +432,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
         importedItems.push({
           id: `imported_${Date.now()}_${i}`,
           serialNumber,
-          system,
+          system: finalSystem,
           category: category || '通用测试',
           type: normalizedType,
           description,
@@ -1212,20 +1225,96 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
               </div>
             </div>
 
+            {/* 故障系统管理 */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-800">故障系统管理</h3>
+                <button
+                  onClick={() => {
+                    setEditingSystem(null);
+                    setNewSystemName('');
+                    setShowAddSystemModal(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                >
+                  + 添加故障系统
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {systems.map((system) => (
+                  <div
+                    key={system}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all"
+                  >
+                    <button
+                      onClick={() => setSelectedCheckSystem(selectedCheckSystem === system ? '' : system)}
+                      className={`text-left flex-1 font-medium ${
+                        selectedCheckSystem === system ? 'text-blue-600' : 'text-gray-700'
+                      }`}
+                    >
+                      {system}
+                      <span className="text-xs text-gray-400 ml-2">
+                        ({storeCheckItems.filter(i => i.system === system).length}项)
+                      </span>
+                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingSystem(system);
+                          setNewSystemName(system);
+                          setShowAddSystemModal(true);
+                        }}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`确定要删除故障系统 "${system}" 吗？这将同时删除该系统下的所有检查项。`)) {
+                            deleteSystem(system);
+                            if (selectedCheckSystem === system) {
+                              setSelectedCheckSystem('');
+                            }
+                          }
+                        }}
+                        className="p-1 text-gray-400 hover:text-red-600"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* 检查项管理 */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-semibold text-gray-800">检查项列表</h3>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={storeCheckItems.length > 0 && selectedItems.length === storeCheckItems.length}
-                      onChange={handleSelectAll}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-600">全选</span>
-                  </label>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {selectedCheckSystem ? `${selectedCheckSystem} - 检查项` : '检查项列表'}
+                  </h3>
+                  <select
+                    value={selectedCheckSystem}
+                    onChange={(e) => setSelectedCheckSystem(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">全部系统</option>
+                    {systems.map((system) => (
+                      <option key={system} value={system}>{system}</option>
+                    ))}
+                  </select>
+                  {selectedCheckSystem && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.length > 0}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-600">全选</span>
+                    </label>
+                  )}
                   {selectedItems.length > 0 && (
                     <button
                       onClick={handleBatchDelete}
@@ -1239,8 +1328,8 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept=".xlsx,.xls"
-                    onChange={handleExcelUpload}
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => handleExcelUpload(e, selectedCheckSystem)}
                     className="hidden"
                   />
                   <button
@@ -1259,11 +1348,12 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   <button
                     onClick={() => {
                       setEditingCheckItem(null);
+                      setNewCheckItem(prev => ({ ...prev, system: selectedCheckSystem || systems[0] || '' }));
                       setShowAddCheckItemModal(true);
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
                   >
-                    添加检查项
+                    + 添加检查项
                   </button>
                 </div>
               </div>
@@ -1296,7 +1386,9 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
               )}
 
               <div className="space-y-4">
-                {storeCheckItems.map(item => (
+                {storeCheckItems
+                  .filter(item => !selectedCheckSystem || item.system === selectedCheckSystem)
+                  .map(item => (
                   <div
                     key={item.id}
                     className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all"
@@ -1905,6 +1997,68 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
                 >
                   我知道了
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 添加/编辑故障系统弹窗 */}
+      {showAddSystemModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-800">
+                {editingSystem ? '编辑故障系统' : '添加故障系统'}
+              </h3>
+              <button
+                onClick={() => setShowAddSystemModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  故障系统名称
+                </label>
+                <input
+                  type="text"
+                  value={newSystemName}
+                  onChange={(e) => setNewSystemName(e.target.value)}
+                  placeholder="请输入故障系统名称"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowAddSystemModal(false)}
+                  className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    if (!newSystemName.trim()) {
+                      alert('请输入故障系统名称');
+                      return;
+                    }
+                    if (editingSystem) {
+                      updateSystem(editingSystem, newSystemName.trim());
+                    } else {
+                      addSystem(newSystemName.trim());
+                    }
+                    setShowAddSystemModal(false);
+                    setNewSystemName('');
+                    setEditingSystem(null);
+                  }}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                >
+                  {editingSystem ? '保存修改' : '添加'}
                 </button>
               </div>
             </div>

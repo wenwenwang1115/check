@@ -11,6 +11,7 @@ interface CheckState {
   selectedSystem: string | null;
   checkItems: CheckItem[];
   dailyTaskIds: string[];
+  systems: string[];
   setVehicleInfo: (info: VehicleInfo) => void;
   setCurrentCheckIndex: (index: number) => void;
   addCheckRecord: (record: Omit<CheckRecord, 'id'>) => void;
@@ -22,6 +23,9 @@ interface CheckState {
   deleteCheckItem: (id: string) => void;
   setDailyTaskIds: (ids: string[]) => void;
   addDailyTaskIds: (ids: string[]) => void;
+  addSystem: (system: string) => void;
+  updateSystem: (oldName: string, newName: string) => void;
+  deleteSystem: (system: string) => void;
   getDailyCheckItems: () => CheckItem[];
   getAllCheckItems: () => CheckItem[];
   getCheckItemsBySystem: (system: string) => CheckItem[];
@@ -34,6 +38,8 @@ interface CheckState {
 }
 
 const STORAGE_KEY = 'check-system-check';
+
+const defaultSystems = ['智能驾驶', '内饰', '底盘', '电气', '车身'];
 
 export const useCheckStore = create<CheckState>()(
   persist(
@@ -49,6 +55,7 @@ export const useCheckStore = create<CheckState>()(
       selectedSystem: null,
       checkItems: checkItems,
       dailyTaskIds: checkItems.filter(item => item.isDaily).map(item => item.id),
+      systems: defaultSystems,
       setVehicleInfo: (info) => set({ vehicleInfo: info }),
       setCurrentCheckIndex: (index) => set({ currentCheckIndex: index }),
       addCheckRecord: (record) =>
@@ -90,6 +97,22 @@ export const useCheckStore = create<CheckState>()(
         set(state => ({ 
           dailyTaskIds: [...new Set([...state.dailyTaskIds, ...ids])]
         })),
+      addSystem: (system) => 
+        set(state => ({ 
+          systems: state.systems.includes(system) ? state.systems : [...state.systems, system] 
+        })),
+      updateSystem: (oldName, newName) => 
+        set(state => ({ 
+          systems: state.systems.map(s => s === oldName ? newName : s),
+          checkItems: state.checkItems.map(item => 
+            item.system === oldName ? { ...item, system: newName } : item
+          )
+        })),
+      deleteSystem: (system) => 
+        set(state => ({ 
+          systems: state.systems.filter(s => s !== system),
+          checkItems: state.checkItems.filter(item => item.system !== system)
+        })),
       getDailyCheckItems: () => {
         const { checkItems, dailyTaskIds } = get();
         return checkItems.filter(item => dailyTaskIds.includes(item.id));
@@ -97,7 +120,7 @@ export const useCheckStore = create<CheckState>()(
       getAllCheckItems: () => get().checkItems,
       getCheckItemsBySystem: (system) =>
         get().checkItems.filter((item) => item.system === system),
-      getSystems: () => [...new Set(get().checkItems.map((item) => item.system))],
+      getSystems: () => get().systems,
       getTotalChecks: () => {
         const { checkRecords } = get();
         return checkRecords.reduce((sum, r) => sum + r.itemCount, 0);
@@ -156,9 +179,10 @@ export const useCheckStore = create<CheckState>()(
         checkItems: state.checkItems,
         dailyTaskIds: state.dailyTaskIds,
         checkRecords: state.checkRecords,
-        faultRecords: state.faultRecords
+        faultRecords: state.faultRecords,
+        systems: state.systems
       }),
-      version: 1
+      version: 2
     }
   )
 );
