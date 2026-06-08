@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { VehicleInfo } from '../types';
-import { vehicleTypes, powerTypes, configurations } from '../data/mockData';
+import { vehicleTypes as defaultVehicleTypes, powerTypes, configurations } from '../data/mockData';
 
 interface VehicleSelectorProps {
   vehicleInfo: VehicleInfo;
@@ -13,6 +13,42 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   onChange,
   onStart
 }) => {
+  const [vehicleTypes, setVehicleTypes] = useState<string[]>(defaultVehicleTypes);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('check-system-vehicles');
+    if (saved) {
+      try {
+        const savedTypes = JSON.parse(saved);
+        if (Array.isArray(savedTypes) && savedTypes.length > 0) {
+          setVehicleTypes(savedTypes);
+        }
+      } catch (e) {
+        console.error('Failed to parse vehicle types from localStorage');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'check-system-vehicles') {
+        if (e.newValue) {
+          try {
+            const savedTypes = JSON.parse(e.newValue);
+            if (Array.isArray(savedTypes)) {
+              setVehicleTypes(savedTypes);
+            }
+          } catch (e) {
+            console.error('Failed to parse vehicle types from storage event');
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const isComplete =
     vehicleInfo.vehicleType && vehicleInfo.powerType && vehicleInfo.configuration;
 

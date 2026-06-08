@@ -66,7 +66,11 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
     confirmPassword: ''
   });
 
-  const [localVehicleTypes, setLocalVehicleTypes] = useState<string[]>(vehicleTypes);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [localVehicleTypes, setLocalVehicleTypes] = useState<string[]>(() => {
+    const saved = localStorage.getItem('check-system-vehicles');
+    return saved ? JSON.parse(saved) : vehicleTypes;
+  });
   const [localCheckItems, setLocalCheckItems] = useState<CheckItem[]>(checkItems);
   const [localTaskDispatchRecords, setLocalTaskDispatchRecords] = useState(taskDispatchRecords);
   const [localDailyTasks, setLocalDailyTasks] = useState(dailyTasks);
@@ -246,14 +250,18 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
 
   const handleAddVehicle = () => {
     if (newVehicle && !localVehicleTypes.includes(newVehicle)) {
-      setLocalVehicleTypes(prev => [...prev, newVehicle]);
+      const updated = [...localVehicleTypes, newVehicle];
+      setLocalVehicleTypes(updated);
+      localStorage.setItem('check-system-vehicles', JSON.stringify(updated));
       setNewVehicle('');
       setShowVehicleModal(false);
     }
   };
 
   const handleDeleteVehicle = (vehicle: string) => {
-    setLocalVehicleTypes(prev => prev.filter(v => v !== vehicle));
+    const updated = localVehicleTypes.filter(v => v !== vehicle);
+    setLocalVehicleTypes(updated);
+    localStorage.setItem('check-system-vehicles', JSON.stringify(updated));
   };
 
   const handlePasswordChange = () => {
@@ -282,6 +290,26 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const handleDeleteCheckItem = (itemId: string) => {
     if (confirm('确定要删除这个检查项吗？')) {
       setLocalCheckItems(prev => prev.filter(item => item.id !== itemId));
+      setSelectedItems(prev => prev.filter(id => id !== itemId));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedItems.length === 0) {
+      alert('请先选择要删除的检查项');
+      return;
+    }
+    if (confirm(`确定要删除选中的 ${selectedItems.length} 个检查项吗？`)) {
+      setLocalCheckItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
+      setSelectedItems([]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.length === localCheckItems.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(localCheckItems.map(item => item.id));
     }
   };
 
@@ -1178,7 +1206,26 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
             {/* 检查项管理 */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-800">检查项列表</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-semibold text-gray-800">检查项列表</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={localCheckItems.length > 0 && selectedItems.length === localCheckItems.length}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-600">全选</span>
+                  </label>
+                  {selectedItems.length > 0 && (
+                    <button
+                      onClick={handleBatchDelete}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                    >
+                      🗑️ 批量删除 ({selectedItems.length})
+                    </button>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="file"
@@ -1247,6 +1294,18 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(item.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedItems([...selectedItems, item.id]);
+                            } else {
+                              setSelectedItems(selectedItems.filter(id => id !== item.id));
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
                         <span className="text-sm text-blue-600 font-medium">{item.serialNumber}</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           item.type === 'dynamic' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
@@ -1254,11 +1313,6 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                           {item.type === 'dynamic' ? '动态' : '静态'}
                         </span>
                         <span className="text-sm text-gray-500">{item.system} / {item.category}</span>
-                        {item.isDaily && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                            每日
-                          </span>
-                        )}
                       </div>
                       <div className="flex gap-2">
                         <button
