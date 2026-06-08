@@ -13,11 +13,9 @@ import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 
-// for esm mode
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// load env
 dotenv.config()
 
 const app: express.Application = express()
@@ -45,22 +43,24 @@ app.use(
 )
 
 /**
+ * Serve static files from dist directory
+ */
+app.use(express.static(path.join(__dirname, '../dist')))
+
+/**
+ * Catch-all route for frontend routing
+ */
+app.get('*', (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../dist', 'index.html'))
+})
+
+/**
  * error handler middleware
  */
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({
     success: false,
     error: 'Server internal error',
-  })
-})
-
-/**
- * 404 handler
- */
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: 'API not found',
   })
 })
 
