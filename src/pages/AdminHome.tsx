@@ -49,7 +49,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingCheckItem, setEditingCheckItem] = useState<CheckItem | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   // 新任务表单 - 改为按数量选择
   const [newTask, setNewTask] = useState({
@@ -460,7 +460,17 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
       const newItems = importedItems.filter(item => !existingSerials.has(item.serialNumber));
       const duplicates = importedItems.length - newItems.length;
 
-      setCheckItems(prev => [...(Array.isArray(prev) ? prev : []), ...newItems]);
+      const currentItems = Array.isArray(storeCheckItems) ? storeCheckItems : [];
+      const updatedItems = [...currentItems, ...newItems];
+      console.log('导入成功，检查项数量:', updatedItems.length);
+      setCheckItems(updatedItems);
+      localStorage.setItem('check-system-check', JSON.stringify({
+        checkItems: updatedItems,
+        dailyTaskIds: [],
+        checkRecords: [],
+        faultRecords: [],
+        systems: systems
+      }));
       setUploadProgress(100);
 
       const msg = duplicates > 0
