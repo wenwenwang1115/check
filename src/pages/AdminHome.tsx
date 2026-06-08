@@ -26,7 +26,15 @@ type TabType = 'dashboard' | 'tasks' | 'users' | 'checkitems' | 'vehicles' | 'se
 
 export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const { currentUser, logout, registeredUsers, updateUser } = useAuthStore();
-  const { checkRecords: storeCheckRecords, faultRecords: storeFaultRecords } = useCheckStore();
+  const { 
+    checkRecords: storeCheckRecords, 
+    faultRecords: storeFaultRecords,
+    checkItems: storeCheckItems,
+    setCheckItems,
+    deleteCheckItem,
+    setDailyTaskIds,
+    getSystems
+  } = useCheckStore();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showAddCheckItemModal, setShowAddCheckItemModal] = useState(false);
@@ -80,7 +88,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const allTasks = [...localDailyTasks, ...localWeeklyTasks];
   const allUsers = registeredUsers.filter(u => u.role === 'user');
   const todayInviteCode = getTodayInviteCode();
-  const systems = [...new Set(localCheckItems.map(item => item.system))];
+  const systems = getSystems();
 
   // 动态计算：总检查次数 = 所有记录 itemCount 之和
   const totalChecks = storeCheckRecords.reduce((sum, r) => sum + r.itemCount, 0);
@@ -136,9 +144,9 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
 
   // 自动选择未检查的检查项
   const getUncheckedItems = (system: string, count: number): CheckItem[] => {
-    let availableItems = localCheckItems;
+    let availableItems = storeCheckItems;
     if (system !== '全部') {
-      availableItems = localCheckItems.filter(item => item.system === system);
+      availableItems = storeCheckItems.filter(item => item.system === system);
     }
     // 按最近检查时间排序，优先选择未检查的
     const today = new Date().toISOString().split('T')[0];
@@ -146,7 +154,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
       .filter(r => r.date === today)
       .flatMap(r => {
         // 根据系统获取对应的检查项ID
-        return localCheckItems
+        return storeCheckItems
           .filter(item => system === '全部' || item.system === system)
           .slice(0, r.itemCount)
           .map(item => item.id);
@@ -175,6 +183,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
 
     if (newTask.type === 'daily') {
       setLocalDailyTasks(prev => [...prev, task]);
+      setDailyTaskIds(selectedItems.map(item => item.id));
     } else {
       setLocalWeeklyTasks(prev => [...prev, task]);
     }
@@ -289,7 +298,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
 
   const handleDeleteCheckItem = (itemId: string) => {
     if (confirm('确定要删除这个检查项吗？')) {
-      setLocalCheckItems(prev => prev.filter(item => item.id !== itemId));
+      deleteCheckItem(itemId);
       setSelectedItems(prev => prev.filter(id => id !== itemId));
     }
   };
@@ -300,16 +309,16 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
       return;
     }
     if (confirm(`确定要删除选中的 ${selectedItems.length} 个检查项吗？`)) {
-      setLocalCheckItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
+      selectedItems.forEach(id => deleteCheckItem(id));
       setSelectedItems([]);
     }
   };
 
   const handleSelectAll = () => {
-    if (selectedItems.length === localCheckItems.length) {
+    if (selectedItems.length === storeCheckItems.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(localCheckItems.map(item => item.id));
+      setSelectedItems(storeCheckItems.map(item => item.id));
     }
   };
 
@@ -434,11 +443,11 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
           : '没有找到有效的检查项数据');
       }
 
-      const existingSerials = new Set(localCheckItems.map(i => i.serialNumber));
+      const existingSerials = new Set(storeCheckItems.map(i => i.serialNumber));
       const newItems = importedItems.filter(item => !existingSerials.has(item.serialNumber));
       const duplicates = importedItems.length - newItems.length;
 
-      setLocalCheckItems(prev => [...prev, ...newItems]);
+      setCheckItems(prev => [...prev, ...newItems]);
       setUploadProgress(100);
 
       const msg = duplicates > 0
@@ -909,13 +918,13 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                     <input
                       type="number"
                       min="1"
-                      max={newTask.system === '全部' ? localCheckItems.length : localCheckItems.filter(i => i.system === newTask.system).length}
+                      max={newTask.system === '全部' ? storeCheckItems.length : storeCheckItems.filter(i => i.system === newTask.system).length}
                       value={newTask.itemCount}
                       onChange={(e) => setNewTask(prev => ({ ...prev, itemCount: parseInt(e.target.value) || 1 }))}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      可选数量: {newTask.system === '全部' ? localCheckItems.length : localCheckItems.filter(i => i.system === newTask.system).length} 项
+                      可选数量: {newTask.system === '全部' ? storeCheckItems.length : storeCheckItems.filter(i => i.system === newTask.system).length} 项
                     </p>
                   </div>
 
@@ -1211,7 +1220,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={localCheckItems.length > 0 && selectedItems.length === localCheckItems.length}
+                      checked={storeCheckItems.length > 0 && selectedItems.length === storeCheckItems.length}
                       onChange={handleSelectAll}
                       className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                     />
@@ -1287,7 +1296,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
               )}
 
               <div className="space-y-4">
-                {localCheckItems.map(item => (
+                {storeCheckItems.map(item => (
                   <div
                     key={item.id}
                     className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all"

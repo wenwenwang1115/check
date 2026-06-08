@@ -11,28 +11,19 @@ export const SystemList: React.FC<SystemListProps> = ({
   selectedSystem,
   onSelect
 }) => {
-  const systemIcons: Record<string, string> = {
-    '智能驾驶': '🚗',
-    '内饰': '🚙',
-    '底盘': '🔧',
-    '电气': '⚡',
-    '车身': '🚘'
-  };
-
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       {systems.map((system) => (
         <button
           key={system}
           onClick={() => onSelect(system)}
-          className={`p-4 rounded-xl transition-all duration-200 text-center ${
+          className={`py-4 px-6 rounded-xl transition-all duration-200 text-center font-medium text-base ${
             selectedSystem === system
               ? 'bg-blue-600 text-white shadow-lg scale-105'
-              : 'bg-white text-gray-700 hover:bg-blue-50 hover:shadow-md'
+              : 'bg-white text-gray-700 hover:bg-blue-50 hover:shadow-md border border-gray-200'
           }`}
         >
-          <div className="text-3xl mb-2">{systemIcons[system] || '📋'}</div>
-          <div className="font-medium">{system}</div>
+          {system}
         </button>
       ))}
     </div>
