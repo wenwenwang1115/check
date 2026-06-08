@@ -1,21 +1,7 @@
 name = "check-system"
 type = "pages"
+compatibility_date = "2024-06-14"
 
 [build]
 command = "npm run build"
 publish = "dist"
-
-[functions]
-"api/*" = { type = "worker", main = "src/worker.ts" }
-
-[[redirects]]
-from = "/api/*"
-to = "/api/:splat"
-status = 200
-
-[[headers]]
-for = "/*"
-[headers.values]
-Access-Control-Allow-Origin = "*"
-Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-Access-Control-Allow-Headers = "Content-Type, Authorization"
