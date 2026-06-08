@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { useAuthStore } from '../store/authStore';
 import { useCheckStore } from '../store/checkStore';
+import { CheckItem, Task, User } from '../types';
 import {
   checkItems,
   dailyTasks,
@@ -15,7 +17,6 @@ import {
   vehicleStats,
   taskDispatchRecords
 } from '../data/mockData';
-import { CheckItem, Task, User } from '../types';
 
 interface AdminHomeProps {
   onNavigate: (page: string) => void;
@@ -273,6 +274,10 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [showFormatModal, setShowFormatModal] = useState(false);
+
+  const VALID_SYSTEMS = ['智能驾驶', '内饰', '底盘', '电气', '车身'];
+  const VALID_TYPES = ['动态', '静态', 'dynamic', 'static'];
 
   const handleDeleteCheckItem = (itemId: string) => {
     if (confirm('确定要删除这个检查项吗？')) {
@@ -290,64 +295,140 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
     setUploadSuccess('');
 
     try {
+      const isExcel = file.name.toLowerCase().endsWith('.xlsx') || 
+                      file.name.toLowerCase().endsWith('.xls') ||
+                      file.name.toLowerCase().endsWith('.csv');
+      if (!isExcel) {
+        throw new Error('文件格式不正确，请上传Excel文件(.xlsx/.xls/.csv)');
+      }
+
+      if (file.size > 20 * 1024 * 1024) {
+        throw new Error('文件大小超过限制(最大20MB)');
+      }
+
+      setUploadProgress(10);
       const arrayBuffer = await file.arrayBuffer();
-      setUploadProgress(20);
+      setUploadProgress(25);
 
-      if (!file.name.toLowerCase().endsWith('.xlsx') && !file.name.toLowerCase().endsWith('.xls')) {
-        throw new Error('文件格式不正确，请上传Excel文件(.xlsx或.xls)');
+      let workbook: XLSX.WorkBook;
+      try {
+        workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      } catch (e) {
+        throw new Error('Excel文件解析失败，请检查文件是否损坏');
       }
-
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error('文件大小超过限制(最大10MB)');
-      }
-
       setUploadProgress(40);
 
-      const data = new Uint8Array(arrayBuffer);
-      const textDecoder = new TextDecoder('utf-8');
-      let content = '';
-      try {
-        content = textDecoder.decode(data.slice(0, 1000));
-      } catch (e) {
-        console.log('Binary file detected, proceeding with binary parsing');
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!firstSheet) {
+        throw new Error('Excel文件中没有有效的工作表');
       }
 
-      setUploadProgress(60);
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(firstSheet, { defval: '' });
+      setUploadProgress(55);
 
-      const mockItems: CheckItem[] = [];
-      const totalRows = Math.min(Math.floor(arrayBuffer.byteLength / 100), 1000);
-      
+      if (rows.length === 0) {
+        throw new Error('Excel文件为空，请至少填写一行数据');
+      }
+
+      const importedItems: CheckItem[] = [];
+      const errors: string[] = [];
+      const BATCH_SIZE = 100;
+      const totalRows = rows.length;
+
       for (let i = 0; i < totalRows; i++) {
-        mockItems.push({
+        const row = rows[i];
+        const rowNum = i + 2; // 行号（加上表头）
+
+        const serialNumber = String(row['检查序号'] || row['序号'] || row['serialNumber'] || row['编号'] || '').trim();
+        const system = String(row['故障系统'] || row['系统'] || row['system'] || '').trim();
+        const category = String(row['功能分类'] || row['分类'] || row['category'] || '').trim();
+        const typeInput = String(row['动态/静态'] || row['类型'] || row['type'] || '').trim();
+        const description = String(row['检查描述'] || row['描述'] || row['description'] || '').trim();
+        const precondition = String(row['前置条件'] || row['precondition'] || '').trim();
+        const testStepsStr = String(row['测试步骤'] || row['步骤'] || row['testSteps'] || '').trim();
+        const expectedResult = String(row['期望结果'] || row['预期结果'] || row['expectedResult'] || '').trim();
+        const isDailyStr = String(row['每日检查'] || row['isDaily'] || row['每日'] || '').trim();
+
+        if (!serialNumber) {
+          errors.push(`第${rowNum}行：检查序号不能为空`);
+          continue;
+        }
+        if (!system) {
+          errors.push(`第${rowNum}行：故障系统不能为空`);
+          continue;
+        }
+        if (!description) {
+          errors.push(`第${rowNum}行：检查描述不能为空`);
+          continue;
+        }
+
+        const normalizedType: 'dynamic' | 'static' = 
+          (typeInput === '动态' || typeInput.toLowerCase() === 'dynamic') ? 'dynamic' : 'static';
+
+        const testSteps = testStepsStr
+          .split(/[;；\n\/|]/)
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+
+        if (testSteps.length === 0) {
+          testSteps.push('执行检查');
+        }
+
+        const isDaily = isDailyStr === '是' || 
+                       isDailyStr.toLowerCase() === 'true' || 
+                       isDailyStr === '1' ||
+                       isDailyStr === '每日';
+
+        importedItems.push({
           id: `imported_${Date.now()}_${i}`,
-          serialNumber: `IM-${String(i + 1).padStart(3, '0')}`,
-          system: ['智能驾驶', '内饰', '底盘', '电气', '车身'][i % 5],
-          category: ['功能测试', '性能测试', '安全测试'][i % 3],
-          type: i % 2 === 0 ? 'static' : 'dynamic',
-          description: `导入检查项 ${i + 1}`,
-          precondition: '车辆通电',
-          testSteps: [`步骤 ${i + 1}-1`, `步骤 ${i + 1}-2`],
-          expectedResult: '测试通过',
-          isDaily: i % 3 === 0
+          serialNumber,
+          system,
+          category: category || '通用测试',
+          type: normalizedType,
+          description,
+          precondition: precondition || '车辆通电',
+          testSteps,
+          expectedResult: expectedResult || '检查通过',
+          isDaily
         });
-        
-        setUploadProgress(60 + Math.floor((i / totalRows) * 30));
-        await new Promise(resolve => setTimeout(resolve, 1));
+
+        if ((i + 1) % BATCH_SIZE === 0) {
+          setUploadProgress(55 + Math.floor(((i + 1) / totalRows) * 40));
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
       }
 
       setUploadProgress(95);
-      setLocalCheckItems(prev => [...prev, ...mockItems]);
+
+      if (importedItems.length === 0) {
+        throw new Error(errors.length > 0 
+          ? `导入失败：${errors[0]}（共${errors.length}个错误）` 
+          : '没有找到有效的检查项数据');
+      }
+
+      const existingSerials = new Set(localCheckItems.map(i => i.serialNumber));
+      const newItems = importedItems.filter(item => !existingSerials.has(item.serialNumber));
+      const duplicates = importedItems.length - newItems.length;
+
+      setLocalCheckItems(prev => [...prev, ...newItems]);
       setUploadProgress(100);
-      setUploadSuccess(`成功导入 ${mockItems.length} 条检查项`);
+
+      const msg = duplicates > 0
+        ? `成功导入 ${newItems.length} 条检查项（跳过 ${duplicates} 条重复序号）`
+        : `成功导入 ${newItems.length} 条检查项`;
+      setUploadSuccess(msg + (errors.length > 0 ? `，忽略 ${errors.length} 条错误行` : ''));
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : '导入失败');
+      setUploadError(error instanceof Error ? error.message : '导入失败，请重试');
     } finally {
       setIsUploading(false);
+      if (e.target) {
+        e.target.value = '';
+      }
       setTimeout(() => {
         setUploadProgress(0);
         setUploadError('');
         setUploadSuccess('');
-      }, 5000);
+      }, 8000);
     }
   };
 
@@ -1107,6 +1188,12 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                     className="hidden"
                   />
                   <button
+                    onClick={() => setShowFormatModal(true)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
+                  >
+                    📋 格式说明
+                  </button>
+                  <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1604,6 +1691,159 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
               >
                 关闭
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel格式说明弹窗 */}
+      {showFormatModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
+              <h3 className="text-xl font-semibold text-gray-800">📋 Excel导入格式说明</h3>
+              <button
+                onClick={() => setShowFormatModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-2">📌 基本要求</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• 文件格式：.xlsx / .xls / .csv（推荐使用 .xlsx）</li>
+                    <li>• 文件大小：不超过 20MB</li>
+                    <li>• 第一行为表头，之后每一行为一条检查项</li>
+                    <li>• 表头名称支持中文或英文（见下表），但必须在第一行</li>
+                    <li>• 检查序号不能与系统中已有检查项重复（重复会自动跳过）</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-3">📑 表头字段说明</h4>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">中文表头</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">支持的别名</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">必填</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">填写说明 / 示例</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">检查序号</td>
+                          <td className="py-3 px-4 text-gray-600">序号 / 编号 / serialNumber</td>
+                          <td className="py-3 px-4"><span className="text-red-600 font-medium">必须</span></td>
+                          <td className="py-3 px-4 text-gray-600">如 ADAS-001、INT-003，用于唯一标识检查项</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">故障系统</td>
+                          <td className="py-3 px-4 text-gray-600">系统 / system</td>
+                          <td className="py-3 px-4"><span className="text-red-600 font-medium">必须</span></td>
+                          <td className="py-3 px-4 text-gray-600">智能驾驶 / 内饰 / 底盘 / 电气 / 车身</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">功能分类</td>
+                          <td className="py-3 px-4 text-gray-600">分类 / category</td>
+                          <td className="py-3 px-4"><span className="text-gray-400">可选</span></td>
+                          <td className="py-3 px-4 text-gray-600">如 ADAS、中控系统、空调系统，未填默认为"通用测试"</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">动态/静态</td>
+                          <td className="py-3 px-4 text-gray-600">类型 / type</td>
+                          <td className="py-3 px-4"><span className="text-gray-400">可选</span></td>
+                          <td className="py-3 px-4 text-gray-600">动态 / static（默认静态，填写"动态"为动态检查）</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">检查描述</td>
+                          <td className="py-3 px-4 text-gray-600">描述 / description</td>
+                          <td className="py-3 px-4"><span className="text-red-600 font-medium">必须</span></td>
+                          <td className="py-3 px-4 text-gray-600">简要描述检查内容，如"自适应巡航控制系统测试"</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">前置条件</td>
+                          <td className="py-3 px-4 text-gray-600">precondition</td>
+                          <td className="py-3 px-4"><span className="text-gray-400">可选</span></td>
+                          <td className="py-3 px-4 text-gray-600">执行检查前应满足的条件，未填默认为"车辆通电"</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">测试步骤</td>
+                          <td className="py-3 px-4 text-gray-600">步骤 / testSteps</td>
+                          <td className="py-3 px-4"><span className="text-gray-400">可选</span></td>
+                          <td className="py-3 px-4 text-gray-600">多个步骤用 <span className="font-mono bg-gray-100 px-1 rounded">分号;</span> 或 <span className="font-mono bg-gray-100 px-1 rounded">换行</span> 分隔</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">期望结果</td>
+                          <td className="py-3 px-4 text-gray-600">预期结果 / expectedResult</td>
+                          <td className="py-3 px-4"><span className="text-gray-400">可选</span></td>
+                          <td className="py-3 px-4 text-gray-600">预期的检查结果，未填默认为"检查通过"</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-blue-600">每日检查</td>
+                          <td className="py-3 px-4 text-gray-600">每日 / isDaily</td>
+                          <td className="py-3 px-4"><span className="text-gray-400">可选</span></td>
+                          <td className="py-3 px-4 text-gray-600">是 / 每日 / true / 1（填写后该检查项会进入每日任务池）</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-3">📄 示例文件内容（复制到Excel即可使用）</h4>
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-2 text-sm text-gray-600 font-mono">
+                      第1行（表头）：检查序号 | 故障系统 | 功能分类 | 动态/静态 | 检查描述 | 前置条件 | 测试步骤 | 期望结果 | 每日检查
+                    </div>
+                    <div className="p-4 space-y-2 text-sm font-mono">
+                      <div className="flex gap-3 items-start">
+                        <span className="text-gray-400 min-w-[3rem]">行2</span>
+                        <span className="text-gray-700">ADAS-001 | 智能驾驶 | ADAS | 动态 | 自适应巡航控制系统测试 | 车辆在封闭道路行驶，车速≥30km/h | 开启ACC功能;设置巡航速度为60km/h;观察车辆是否自动保持跟车距离 | 车辆能够自动保持设定速度并与前车保持安全距离 | 是</span>
+                      </div>
+                      <div className="flex gap-3 items-start">
+                        <span className="text-gray-400 min-w-[3rem]">行3</span>
+                        <span className="text-gray-700">INT-001 | 内饰 | 中控系统 | 静态 | 中控大屏触控测试 | 车辆通电，中控屏幕开启 | 点击主菜单;滑动屏幕切换页面;测试各功能按钮响应 | 触控响应灵敏，显示清晰无卡顿 | 是</span>
+                      </div>
+                      <div className="flex gap-3 items-start">
+                        <span className="text-gray-400 min-w-[3rem]">行4</span>
+                        <span className="text-gray-700">CHS-001 | 底盘 | 悬挂系统 | 静态 | 悬挂系统检查 | 车辆静止停放在平坦地面 | 检查悬挂系统外观;检查减震器是否有漏油 | 悬挂部件无损伤，减震器无漏油 | </span>
+                      </div>
+                      <div className="flex gap-3 items-start">
+                        <span className="text-gray-400 min-w-[3rem]">行5</span>
+                        <span className="text-gray-700">ELE-001 | 电气 | 照明系统 | 动态 | 大灯功能测试 | 车辆在夜间或昏暗环境行驶 | 开启近光灯;开启远光灯;测试自动大灯功能 | 灯光照明正常，远近光切换流畅 | 是</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                  <h4 className="font-semibold text-amber-800 mb-2">⚠️ 注意事项</h4>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>1. 测试步骤中的分号请使用中文分号"；"或英文分号";"</li>
+                    <li>2. 单元格内换行请使用 Alt+Enter（Excel），系统会按换行和分号拆分为多个步骤</li>
+                    <li>3. 数据量较大时（超过1000行），导入可能需要1-5秒，请耐心等待</li>
+                    <li>4. 系统会自动跳过检查序号已存在的行，并在完成后提示跳过数量</li>
+                    <li>5. 建议先用少量数据测试格式，确认无误后再批量导入</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t p-4 flex-shrink-0 bg-gray-50">
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowFormatModal(false)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                >
+                  我知道了
+                </button>
+              </div>
             </div>
           </div>
         </div>
