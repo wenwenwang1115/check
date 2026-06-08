@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 interface LoginProps {
@@ -9,14 +9,43 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const { login, isLoggedIn } = useAuthStore();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('check-system-remember');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setUsername(data.username || '');
+        setPassword(data.password || '');
+        setRememberMe(true);
+      } catch (e) {
+        console.error('Failed to parse remember me data');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      const loginTime = new Date().getTime();
+      localStorage.setItem('check-system-login-time', loginTime.toString());
+    }
+  }, [isLoggedIn]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     const success = login(username, password);
-    if (!success) {
+    if (success) {
+      if (rememberMe) {
+        localStorage.setItem('check-system-remember', JSON.stringify({ username, password }));
+      } else {
+        localStorage.removeItem('check-system-remember');
+      }
+    } else {
       setError('用户名或密码错误');
     }
   };
@@ -54,13 +83,35 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               密码
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入密码（需包含数字和字母）"
+                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">密码需包含数字和字母</p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-600">记住密码</span>
+            </label>
           </div>
 
           <button

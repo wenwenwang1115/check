@@ -7,21 +7,48 @@ import { AdminHome } from './pages/AdminHome';
 
 type PageType = 'login' | 'register' | 'home';
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
 export default function App() {
-  const { isLoggedIn, currentUser } = useAuthStore();
+  const { isLoggedIn, currentUser, logout } = useAuthStore();
   const [currentPage, setCurrentPage] = useState<PageType>('login');
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    if (isLoggedIn) {
-      setCurrentPage('home');
-    } else {
-      setCurrentPage('login');
+    const loginTimeStr = localStorage.getItem('check-system-login-time');
+    if (loginTimeStr) {
+      const loginTime = parseInt(loginTimeStr, 10);
+      const now = new Date().getTime();
+      
+      if (now - loginTime > ONE_DAY_MS) {
+        logout();
+        localStorage.removeItem('check-system-login-time');
+      }
     }
-  }, [isLoggedIn]);
+    setIsCheckingSession(false);
+  }, [logout]);
+
+  useEffect(() => {
+    if (!isCheckingSession) {
+      if (isLoggedIn) {
+        setCurrentPage('home');
+      } else {
+        setCurrentPage('login');
+      }
+    }
+  }, [isLoggedIn, isCheckingSession]);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page as PageType);
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-500">加载中...</div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     if (currentPage === 'register') {
