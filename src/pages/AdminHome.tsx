@@ -1226,7 +1226,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
             </div>
 
             {/* 故障系统管理 */}
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-800">故障系统管理</h3>
                 <button
@@ -1240,213 +1240,221 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   + 添加故障系统
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {systems.map((system) => (
-                  <div
-                    key={system}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all"
-                  >
-                    <button
-                      onClick={() => setSelectedCheckSystem(selectedCheckSystem === system ? '' : system)}
-                      className={`text-left flex-1 font-medium ${
-                        selectedCheckSystem === system ? 'text-blue-600' : 'text-gray-700'
-                      }`}
-                    >
-                      {system}
-                      <span className="text-xs text-gray-400 ml-2">
-                        ({storeCheckItems.filter(i => i.system === system).length}项)
-                      </span>
-                    </button>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingSystem(system);
-                          setNewSystemName(system);
-                          setShowAddSystemModal(true);
-                        }}
-                        className="p-1 text-gray-400 hover:text-blue-600"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`确定要删除故障系统 "${system}" 吗？这将同时删除该系统下的所有检查项。`)) {
-                            deleteSystem(system);
-                            if (selectedCheckSystem === system) {
-                              setSelectedCheckSystem('');
-                            }
-                          }
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-600"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 检查项管理 */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    {selectedCheckSystem ? `${selectedCheckSystem} - 检查项` : '检查项列表'}
-                  </h3>
-                  <select
-                    value={selectedCheckSystem}
-                    onChange={(e) => setSelectedCheckSystem(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">全部系统</option>
-                    {systems.map((system) => (
-                      <option key={system} value={system}>{system}</option>
-                    ))}
-                  </select>
-                  {selectedCheckSystem && (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.length > 0}
-                        onChange={handleSelectAll}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-600">全选</span>
-                    </label>
-                  )}
-                  {selectedItems.length > 0 && (
-                    <button
-                      onClick={handleBatchDelete}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
-                    >
-                      🗑️ 批量删除 ({selectedItems.length})
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept=".xlsx,.xls,.csv"
-                    onChange={(e) => handleExcelUpload(e, selectedCheckSystem)}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => setShowFormatModal(true)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
-                  >
-                    📋 格式说明
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isUploading ? '⏳ 导入中...' : '📥 Excel导入'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingCheckItem(null);
-                      setNewCheckItem(prev => ({ ...prev, system: selectedCheckSystem || systems[0] || '' }));
-                      setShowAddCheckItemModal(true);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-                  >
-                    + 添加检查项
-                  </button>
-                </div>
-              </div>
-
-              {isUploading && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">导入进度</span>
-                    <span className="text-sm font-medium text-blue-600">{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {uploadError && (
-                <div className="mb-6 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-                  ❌ {uploadError}
-                </div>
-              )}
-
-              {uploadSuccess && (
-                <div className="mb-6 p-3 bg-green-50 text-green-600 rounded-lg text-sm">
-                  ✅ {uploadSuccess}
-                </div>
-              )}
-
+              
               <div className="space-y-4">
-                {storeCheckItems
-                  .filter(item => !selectedCheckSystem || item.system === selectedCheckSystem)
-                  .map(item => (
-                  <div
-                    key={item.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.includes(item.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedItems([...selectedItems, item.id]);
-                            } else {
-                              setSelectedItems(selectedItems.filter(id => id !== item.id));
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-blue-600 font-medium">{item.serialNumber}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          item.type === 'dynamic' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {item.type === 'dynamic' ? '动态' : '静态'}
-                        </span>
-                        <span className="text-sm text-gray-500">{item.system} / {item.category}</span>
+                {systems.map((system) => {
+                  const systemItems = storeCheckItems.filter(item => item.system === system);
+                  const isExpanded = selectedCheckSystem === system;
+                  
+                  return (
+                    <div key={system} className="border border-gray-200 rounded-xl overflow-hidden">
+                      <div
+                        className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
+                        onClick={() => setSelectedCheckSystem(isExpanded ? '' : system)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xl transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                          <span className="font-medium text-gray-800">{system}</span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                            {systemItems.length} 项
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingSystem(system);
+                              setNewSystemName(system);
+                              setShowAddSystemModal(true);
+                            }}
+                            className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-all"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`确定要删除故障系统 "${system}" 吗？这将同时删除该系统下的所有检查项。`)) {
+                                deleteSystem(system);
+                                if (selectedCheckSystem === system) {
+                                  setSelectedCheckSystem('');
+                                }
+                              }
+                            }}
+                            className="px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition-all"
+                          >
+                            删除
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingCheckItem(item);
-                            setNewCheckItem({
-                              serialNumber: item.serialNumber,
-                              system: item.system,
-                              category: item.category,
-                              type: item.type,
-                              description: item.description,
-                              precondition: item.precondition,
-                              testSteps: [...item.testSteps],
-                              expectedResult: item.expectedResult,
-                              isDaily: item.isDaily
-                            });
-                            setShowAddCheckItemModal(true);
-                          }}
-                          className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-all"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCheckItem(item.id)}
-                          className="px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition-all"
-                        >
-                          删除
-                        </button>
-                      </div>
+
+                      {isExpanded && (
+                        <div className="p-4 border-t border-gray-100">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm text-gray-600">检查项列表</span>
+                            <div className="flex gap-2">
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept=".xlsx,.xls,.csv"
+                                onChange={(e) => handleExcelUpload(e, system)}
+                                className="hidden"
+                                id={`upload-${system}`}
+                              />
+                              <button
+                                onClick={() => document.getElementById(`upload-${system}`)?.click()}
+                                disabled={isUploading}
+                                className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+                              >
+                                📥 Excel导入
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingCheckItem(null);
+                                  setNewCheckItem(prev => ({ ...prev, system }));
+                                  setShowAddCheckItemModal(true);
+                                }}
+                                className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-all"
+                              >
+                                + 新增检查项
+                              </button>
+                            </div>
+                          </div>
+
+                          {isUploading && (
+                            <div className="mb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm text-gray-600">导入进度</span>
+                                <span className="text-sm font-medium text-blue-600">{uploadProgress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${uploadProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {uploadError && (
+                            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                              ❌ {uploadError}
+                            </div>
+                          )}
+
+                          {uploadSuccess && (
+                            <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg text-sm">
+                              ✅ {uploadSuccess}
+                            </div>
+                          )}
+
+                          {systemItems.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400">
+                              该故障系统暂无检查项，点击上方按钮添加
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2 mb-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedItems.length === systemItems.length}
+                                  onChange={() => {
+                                    if (selectedItems.length === systemItems.length) {
+                                      setSelectedItems(selectedItems.filter(id => !systemItems.map(i => i.id).includes(id)));
+                                    } else {
+                                      setSelectedItems([...selectedItems, ...systemItems.map(i => i.id)]);
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                />
+                                <span className="text-sm text-gray-600">全选</span>
+                                {selectedItems.filter(id => systemItems.map(i => i.id).includes(id)).length > 0 && (
+                                  <button
+                                    onClick={() => {
+                                      const toDelete = selectedItems.filter(id => systemItems.map(i => i.id).includes(id));
+                                      if (confirm(`确定要删除选中的 ${toDelete.length} 个检查项吗？`)) {
+                                        toDelete.forEach(id => deleteCheckItem(id));
+                                        setSelectedItems(selectedItems.filter(id => !toDelete.includes(id)));
+                                      }
+                                    }}
+                                    className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-all ml-auto"
+                                  >
+                                    🗑️ 批量删除 ({selectedItems.filter(id => systemItems.map(i => i.id).includes(id)).length})
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="space-y-2 max-h-80 overflow-y-auto">
+                                {systemItems.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className={`flex items-center justify-between p-3 border rounded-lg ${
+                                      selectedItems.includes(item.id) ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3 flex-1">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedItems.includes(item.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedItems([...selectedItems, item.id]);
+                                          } else {
+                                            setSelectedItems(selectedItems.filter(id => id !== item.id));
+                                          }
+                                        }}
+                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                      />
+                                      <span className="text-sm text-blue-600 font-medium">{item.serialNumber}</span>
+                                      <span className="text-sm text-gray-600 truncate">{item.description}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                        item.type === 'dynamic' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                      }`}>
+                                        {item.type === 'dynamic' ? '动态' : '静态'}
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          setEditingCheckItem(item);
+                                          setNewCheckItem({
+                                            serialNumber: item.serialNumber,
+                                            system: item.system,
+                                            category: item.category,
+                                            type: item.type,
+                                            description: item.description,
+                                            precondition: item.precondition,
+                                            testSteps: [...item.testSteps],
+                                            expectedResult: item.expectedResult,
+                                            isDaily: item.isDaily
+                                          });
+                                          setShowAddCheckItemModal(true);
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-blue-600"
+                                      >
+                                        ✏️
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm('确定要删除这个检查项吗？')) {
+                                            deleteCheckItem(item.id);
+                                          }
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-red-600"
+                                      >
+                                        🗑️
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-gray-700">{item.description}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
