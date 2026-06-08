@@ -109,39 +109,41 @@ export const useCheckStore = create<CheckState>()(
           ]
         })),
       setSelectedSystem: (system) => set({ selectedSystem: system }),
-      setCheckItems: (items) => set({ checkItems: items }),
-      addCheckItem: (item) => set(state => ({ checkItems: [...state.checkItems, item] })),
+      setCheckItems: (items) => set({ checkItems: Array.isArray(items) ? items : [] }),
+      addCheckItem: (item) => set(state => ({ checkItems: [...(Array.isArray(state.checkItems) ? state.checkItems : []), item] })),
       updateCheckItem: (id, updates) => 
         set(state => ({ 
-          checkItems: state.checkItems.map(item => 
-            item.id === id ? { ...item, ...updates } : item
-          )
+          checkItems: Array.isArray(state.checkItems) 
+            ? state.checkItems.map(item => item.id === id ? { ...item, ...updates } : item)
+            : []
         })),
       deleteCheckItem: (id) => 
         set(state => ({ 
-          checkItems: state.checkItems.filter(item => item.id !== id),
-          dailyTaskIds: state.dailyTaskIds.filter(taskId => taskId !== id)
+          checkItems: Array.isArray(state.checkItems) ? state.checkItems.filter(item => item.id !== id) : [],
+          dailyTaskIds: Array.isArray(state.dailyTaskIds) ? state.dailyTaskIds.filter(taskId => taskId !== id) : []
         })),
-      setDailyTaskIds: (ids) => set({ dailyTaskIds: ids }),
+      setDailyTaskIds: (ids) => set({ dailyTaskIds: Array.isArray(ids) ? ids : [] }),
       addDailyTaskIds: (ids) => 
         set(state => ({ 
-          dailyTaskIds: [...new Set([...state.dailyTaskIds, ...ids])]
+          dailyTaskIds: [...new Set([...(Array.isArray(state.dailyTaskIds) ? state.dailyTaskIds : []), ...(Array.isArray(ids) ? ids : [])])]
         })),
       addSystem: (system) => 
         set(state => ({ 
-          systems: state.systems.includes(system) ? state.systems : [...state.systems, system] 
+          systems: Array.isArray(state.systems) && state.systems.includes(system) 
+            ? state.systems 
+            : [...(Array.isArray(state.systems) ? state.systems : []), system] 
         })),
       updateSystem: (oldName, newName) => 
         set(state => ({ 
-          systems: state.systems.map(s => s === oldName ? newName : s),
-          checkItems: state.checkItems.map(item => 
-            item.system === oldName ? { ...item, system: newName } : item
-          )
+          systems: Array.isArray(state.systems) ? state.systems.map(s => s === oldName ? newName : s) : [],
+          checkItems: Array.isArray(state.checkItems) 
+            ? state.checkItems.map(item => item.system === oldName ? { ...item, system: newName } : item)
+            : []
         })),
       deleteSystem: (system) => 
         set(state => ({ 
-          systems: state.systems.filter(s => s !== system),
-          checkItems: state.checkItems.filter(item => item.system !== system)
+          systems: Array.isArray(state.systems) ? state.systems.filter(s => s !== system) : [],
+          checkItems: Array.isArray(state.checkItems) ? state.checkItems.filter(item => item.system !== system) : []
         })),
       getDailyCheckItems: () => {
         const { checkItems, dailyTaskIds } = get();

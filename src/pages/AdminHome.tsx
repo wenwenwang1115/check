@@ -460,7 +460,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
       const newItems = importedItems.filter(item => !existingSerials.has(item.serialNumber));
       const duplicates = importedItems.length - newItems.length;
 
-      setCheckItems(prev => [...prev, ...newItems]);
+      setCheckItems(prev => [...(Array.isArray(prev) ? prev : []), ...newItems]);
       setUploadProgress(100);
 
       const msg = duplicates > 0
