@@ -180,107 +180,65 @@ export const users: User[] = [
     role: 'admin',
     createdAt: new Date(),
     isActive: true
-  },
-  {
-    id: 'user1',
-    username: '张三',
-    email: 'zhangsan@example.com',
-    role: 'user',
-    createdAt: new Date(),
-    isActive: true
-  },
-  {
-    id: 'user2',
-    username: '李四',
-    email: 'lisi@example.com',
-    role: 'user',
-    createdAt: new Date(),
-    isActive: true
-  },
-  {
-    id: 'user3',
-    username: '王五',
-    email: 'wangwu@example.com',
-    role: 'user',
-    createdAt: new Date(),
-    isActive: true
   }
 ];
 
 export const systemStats: SystemStats[] = [
-  { system: '智能驾驶', totalChecks: 150, failedChecks: 8, failureRate: 5.3 },
-  { system: '内饰', totalChecks: 200, failedChecks: 12, failureRate: 6.0 },
-  { system: '底盘', totalChecks: 180, failedChecks: 15, failureRate: 8.3 },
-  { system: '电气', totalChecks: 220, failedChecks: 10, failureRate: 4.5 },
-  { system: '车身', totalChecks: 160, failedChecks: 6, failureRate: 3.8 }
+  { system: '智能驾驶', totalChecks: 0, failedChecks: 0, failureRate: 0 },
+  { system: '内饰', totalChecks: 0, failedChecks: 0, failureRate: 0 },
+  { system: '底盘', totalChecks: 0, failedChecks: 0, failureRate: 0 },
+  { system: '电气', totalChecks: 0, failedChecks: 0, failureRate: 0 },
+  { system: '车身', totalChecks: 0, failedChecks: 0, failureRate: 0 }
 ];
 
 export const vehicleStats: VehicleStats[] = [
-  { vehicleType: 'Model A', totalChecks: 300, completedChecks: 285, completionRate: 95 },
-  { vehicleType: 'Model B', totalChecks: 250, completedChecks: 220, completionRate: 88 },
-  { vehicleType: 'Model C', totalChecks: 180, completedChecks: 175, completionRate: 97.2 },
-  { vehicleType: 'Model D', totalChecks: 220, completedChecks: 198, completionRate: 90 }
+  { vehicleType: 'Model A', totalChecks: 0, completedChecks: 0, completionRate: 0 },
+  { vehicleType: 'Model B', totalChecks: 0, completedChecks: 0, completionRate: 0 },
+  { vehicleType: 'Model C', totalChecks: 0, completedChecks: 0, completionRate: 0 },
+  { vehicleType: 'Model D', totalChecks: 0, completedChecks: 0, completionRate: 0 }
 ];
 
-export const userStats: UserStats[] = [
-  { userId: 'user1', username: '张三', totalTasks: 20, completedTasks: 18, completionRate: 90 },
-  { userId: 'user2', username: '李四', totalTasks: 20, completedTasks: 15, completionRate: 75 },
-  { userId: 'user3', username: '王五', totalTasks: 20, completedTasks: 20, completionRate: 100 }
-];
+export const userStats: UserStats[] = [];
 
-// 车型列表
 export const vehicleTypes = ['Model A', 'Model B', 'Model C', 'Model D'];
 
-// 动力形式 - 更新为BEV/PHEV/REEV/ICE/HEV/其他
 export const powerTypes = ['BEV', 'PHEV', 'REEV', 'ICE', 'HEV', '其他'];
 
-// 车辆配置 - 将旗舰改为豪华
-export const configurations = ['标准版', '舒适版', '豪华版', '豪华'];
+export const configurations = ['标准版', '舒适版', '豪华版', '尊贵型'];
 
-// 生成当日邀请码
 export const generateInviteCode = (): string => {
   const today = new Date();
   const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  // 简单的邀请码生成算法
   const code = `CHK${dateStr}`;
   return code;
 };
 
-// 获取当日邀请码
 export const getTodayInviteCode = (): string => {
   return generateInviteCode();
 };
 
-// 每周故障数据（用于折线图）
 export const weeklyFaultData = [
-  { week: '第1周', faults: 12 },
-  { week: '第2周', faults: 8 },
-  { week: '第3周', faults: 15 },
-  { week: '第4周', faults: 10 },
-  { week: '第5周', faults: 7 },
-  { week: '第6周', faults: 11 },
-  { week: '第7周', faults: 9 }
+  { week: '第1周', faults: 0 },
+  { week: '第2周', faults: 0 },
+  { week: '第3周', faults: 0 },
+  { week: '第4周', faults: 0 },
+  { week: '第5周', faults: 0 },
+  { week: '第6周', faults: 0 },
+  { week: '第7周', faults: 0 }
 ];
 
-// 各系统每日故障数据
 export const dailyFaultBySystem = [
-  { date: '周一', 智能驾驶: 2, 内饰: 1, 底盘: 3, 电气: 1, 车身: 0 },
-  { date: '周二', 智能驾驶: 1, 内饰: 2, 底盘: 1, 电气: 2, 车身: 1 },
-  { date: '周三', 智能驾驶: 3, 内饰: 1, 底盘: 2, 电气: 0, 车身: 2 },
-  { date: '周四', 智能驾驶: 1, 内饰: 3, 底盘: 1, 电气: 1, 车身: 0 },
-  { date: '周五', 智能驾驶: 2, 内饰: 1, 底盘: 3, 电气: 2, 车身: 1 },
-  { date: '周六', 智能驾驶: 0, 内饰: 2, 底盘: 1, 电气: 1, 车身: 0 },
-  { date: '周日', 智能驾驶: 1, 内饰: 1, 底盘: 2, 电气: 0, 车身: 1 }
+  { date: '周一', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
+  { date: '周二', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
+  { date: '周三', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
+  { date: '周四', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
+  { date: '周五', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
+  { date: '周六', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
+  { date: '周日', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 }
 ];
 
-// 用户各系统完成情况
-export const userSystemCompletion = [
-  { userId: 'user1', username: '张三', 智能驾驶: 95, 内饰: 88, 底盘: 92, 电气: 100, 车身: 85 },
-  { userId: 'user2', username: '李四', 智能驾驶: 80, 内饰: 75, 底盘: 70, 电气: 85, 车身: 78 },
-  { userId: 'user3', username: '王五', 智能驾驶: 100, 内饰: 100, 底盘: 100, 电气: 100, 车身: 100 }
-];
+export const userSystemCompletion = [];
 
-// 检查项检查记录
 export interface CheckRecord {
   id: string;
   date: string;
@@ -290,24 +248,8 @@ export interface CheckRecord {
   completionRate: number;
 }
 
-// 检查记录数据
-export const checkRecords: CheckRecord[] = [
-  { id: '1', date: '2025-06-01', system: '智能驾驶', itemCount: 3, completedCount: 3, completionRate: 100 },
-  { id: '2', date: '2025-06-01', system: '内饰', itemCount: 3, completedCount: 2, completionRate: 66.7 },
-  { id: '3', date: '2025-06-01', system: '底盘', itemCount: 2, completedCount: 2, completionRate: 100 },
-  { id: '4', date: '2025-06-02', system: '智能驾驶', itemCount: 3, completedCount: 2, completionRate: 66.7 },
-  { id: '5', date: '2025-06-02', system: '电气', itemCount: 3, completedCount: 3, completionRate: 100 },
-  { id: '6', date: '2025-06-03', system: '内饰', itemCount: 3, completedCount: 3, completionRate: 100 },
-  { id: '7', date: '2025-06-03', system: '车身', itemCount: 1, completedCount: 1, completionRate: 100 },
-  { id: '8', date: '2025-06-04', system: '底盘', itemCount: 2, completedCount: 1, completionRate: 50 },
-  { id: '9', date: '2025-06-04', system: '电气', itemCount: 3, completedCount: 2, completionRate: 66.7 },
-  { id: '10', date: '2025-06-05', system: '智能驾驶', itemCount: 3, completedCount: 3, completionRate: 100 },
-  { id: '11', date: '2025-06-05', system: '车身', itemCount: 1, completedCount: 1, completionRate: 100 },
-  { id: '12', date: '2025-06-06', system: '内饰', itemCount: 3, completedCount: 3, completionRate: 100 },
-  { id: '13', date: '2025-06-06', system: '底盘', itemCount: 2, completedCount: 2, completionRate: 100 }
-];
+export const checkRecords: CheckRecord[] = [];
 
-// 任务下发记录
 export interface TaskDispatchRecord {
   id: string;
   date: string;
@@ -317,8 +259,4 @@ export interface TaskDispatchRecord {
   dispatchedTo: string[];
 }
 
-export const taskDispatchRecords: TaskDispatchRecord[] = [
-  { id: '1', date: '2025-06-06', taskType: 'daily', system: '全部', itemCount: 7, dispatchedTo: ['张三', '李四', '王五'] },
-  { id: '2', date: '2025-06-05', taskType: 'daily', system: '全部', itemCount: 7, dispatchedTo: ['张三', '李四', '王五'] },
-  { id: '3', date: '2025-06-01', taskType: 'weekly', system: '全部', itemCount: 5, dispatchedTo: ['张三', '李四', '王五'] }
-];
+export const taskDispatchRecords: TaskDispatchRecord[] = [];
