@@ -80,6 +80,10 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
             立即注册
           </button>
         </div>
+
+        <div className="mt-8 text-center">
+          <span className="text-blue-500 text-sm">开发方@整车耐久开发部</span>
+        </div>
       </div>
     </div>
   );

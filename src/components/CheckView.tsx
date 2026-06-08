@@ -1,6 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { CheckItem } from '../types';
 import { CheckItemCard } from './CheckItemCard';
+import { useCheckStore } from '../store/checkStore';
+import { useAuthStore } from '../store/authStore';
 
 interface CheckViewProps {
   items: CheckItem[];
@@ -9,7 +11,10 @@ interface CheckViewProps {
 
 export const CheckView: React.FC<CheckViewProps> = ({ items, onComplete }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const { addCheckRecord, faultRecords } = useCheckStore();
+  const { currentUser } = useAuthStore();
+  const [recordSaved, setRecordSaved] = useState(false);
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -56,6 +61,44 @@ export const CheckView: React.FC<CheckViewProps> = ({ items, onComplete }) => {
     }
   };
 
+  const handleComplete = () => {
+    if (recordSaved || items.length === 0) {
+      onComplete();
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const username = currentUser?.username || '未知用户';
+
+    // 按系统分组
+    const systemGroups = new Map<string, number>();
+    items.forEach((item) => {
+      const current = systemGroups.get(item.system) || 0;
+      systemGroups.set(item.system, current + 1);
+    });
+
+    // 记录每条系统检查记录，故障数由故障记录独立记录
+    systemGroups.forEach((total, system) => {
+      // 计算当前用户本次的故障数：faultRecords 中 matching 本次检查项的 system
+      const faultCount = faultRecords.filter(
+        (f) => f.username === username && f.date === today && f.system === system
+      ).length;
+      const completed = Math.max(0, total - faultCount);
+      addCheckRecord({
+        date: today,
+        username,
+        system,
+        itemCount: total,
+        completedCount: completed,
+        completionRate: total > 0 ? Math.round((completed / total) * 1000) / 10 : 0
+      });
+    });
+
+    setRecordSaved(true);
+    setTimeout(() => {
+      onComplete();
+    }, 300);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -71,9 +114,7 @@ export const CheckView: React.FC<CheckViewProps> = ({ items, onComplete }) => {
             <div
               key={i}
               className={`h-2 rounded-full transition-all ${
-                i === currentIndex
-                  ? 'w-8 bg-blue-600'
-                  : 'w-2 bg-gray-300'
+                i === currentIndex ? 'w-8 bg-blue-600' : 'w-2 bg-gray-300'
               }`}
             />
           ))}
@@ -107,10 +148,11 @@ export const CheckView: React.FC<CheckViewProps> = ({ items, onComplete }) => {
 
       <div className="mt-4 flex justify-center">
         <button
-          onClick={onComplete}
-          className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 active:scale-98 transition-all"
+          onClick={handleComplete}
+          disabled={recordSaved}
+          className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          完成检查
+          {recordSaved ? '检查已完成' : '完成检查'}
         </button>
       </div>
     </div>

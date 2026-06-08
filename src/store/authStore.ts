@@ -1,20 +1,21 @@
 import { create } from 'zustand';
 import { User } from '../types';
-import { users } from '../data/mockData';
 
 interface AuthState {
   currentUser: User | null;
   isLoggedIn: boolean;
+  registeredUsers: User[];
   login: (username: string, password: string) => boolean;
   register: (username: string, password: string) => boolean;
   logout: () => void;
+  updateUser: (userId: string, updates: Partial<User>) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   currentUser: null,
   isLoggedIn: false,
+  registeredUsers: [],
   login: (username: string, password: string) => {
-    // 管理员账户
     if (username === 'admin' && password === 'admin123') {
       const adminUser: User = {
         id: 'admin',
@@ -27,11 +28,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ currentUser: adminUser, isLoggedIn: true });
       return true;
     }
-    
-    // 普通用户
-    const user = users.find(
-      (u) => u.username === username && u.role === 'user'
-    );
+    const user = get().registeredUsers.find(u => u.username === username);
     if (user) {
       set({ currentUser: user, isLoggedIn: true });
       return true;
@@ -39,6 +36,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     return false;
   },
   register: (username: string, _password: string) => {
+    const existing = get().registeredUsers.find(u => u.username === username);
+    if (existing) return false;
     const newUser: User = {
       id: `user${Date.now()}`,
       username,
@@ -47,8 +46,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       createdAt: new Date(),
       isActive: true
     };
+    set(state => ({ registeredUsers: [...state.registeredUsers, newUser] }));
     set({ currentUser: newUser, isLoggedIn: true });
     return true;
   },
-  logout: () => set({ currentUser: null, isLoggedIn: false })
+  logout: () => set({ currentUser: null, isLoggedIn: false }),
+  updateUser: (userId: string, updates: Partial<User>) => {
+    set(state => ({
+      registeredUsers: state.registeredUsers.map(u =>
+        u.id === userId ? { ...u, ...updates } : u
+      )
+    }));
+  }
 }));

@@ -28,6 +28,16 @@ export interface CheckItem {
 
 export interface CheckRecord {
   id: string;
+  date: string;
+  username: string;
+  system: string;
+  itemCount: number;
+  completedCount: number;
+  completionRate: number;
+}
+
+export interface CheckHistoryRecord {
+  id: string;
   userId: string;
   checkItemId: string;
   vehicleInfo: VehicleInfo;
@@ -73,4 +83,21 @@ export interface VehicleType {
   id: string;
   name: string;
   createdAt: Date;
+}
+
+export interface FaultRecord {
+  id: string;
+  username: string;
+  vehicleType: string;
+  powerType: string;
+  configuration: string;
+  date: string;
+  checkItemId: string;
+  checkItemSerial: string;
+  system: string;
+  category: string;
+  description: string;
+  faultDescription: string;
+  testSteps: string[];
+  expectedResult: string;
 }

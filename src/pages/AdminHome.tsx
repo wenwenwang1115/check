@@ -1,9 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useCheckStore } from '../store/checkStore';
 import {
-  systemStats,
-  vehicleStats,
-  userStats,
   checkItems,
   dailyTasks,
   weeklyTasks,
@@ -13,7 +11,8 @@ import {
   weeklyFaultData,
   dailyFaultBySystem,
   userSystemCompletion,
-  checkRecords,
+  systemStats,
+  vehicleStats,
   taskDispatchRecords
 } from '../data/mockData';
 import { CheckItem, Task, User } from '../types';
@@ -22,15 +21,17 @@ interface AdminHomeProps {
   onNavigate: (page: string) => void;
 }
 
-type TabType = 'dashboard' | 'tasks' | 'users' | 'checkitems' | 'vehicles' | 'settings';
+type TabType = 'dashboard' | 'tasks' | 'users' | 'checkitems' | 'vehicles' | 'settings' | 'faults';
 
 export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
-  const { currentUser, logout } = useAuthStore();
+  const { currentUser, logout, registeredUsers, updateUser } = useAuthStore();
+  const { checkRecords: storeCheckRecords, faultRecords: storeFaultRecords } = useCheckStore();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showAddCheckItemModal, setShowAddCheckItemModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [showUserStatsModal, setShowUserStatsModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingCheckItem, setEditingCheckItem] = useState<CheckItem | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<string | null>(null);
@@ -65,17 +66,68 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   });
 
   const [localVehicleTypes, setLocalVehicleTypes] = useState<string[]>(vehicleTypes);
-  const [localUsers, setLocalUsers] = useState<User[]>(users);
   const [localCheckItems, setLocalCheckItems] = useState<CheckItem[]>(checkItems);
-  const [localCheckRecords, setLocalCheckRecords] = useState(checkRecords);
   const [localTaskDispatchRecords, setLocalTaskDispatchRecords] = useState(taskDispatchRecords);
   const [localDailyTasks, setLocalDailyTasks] = useState(dailyTasks);
   const [localWeeklyTasks, setLocalWeeklyTasks] = useState(weeklyTasks);
 
+  // 数据看板使用 store 动态数据 + 本地 mock 数据
   const allTasks = [...localDailyTasks, ...localWeeklyTasks];
-  const allUsers = localUsers.filter(u => u.role === 'user');
+  const allUsers = registeredUsers.filter(u => u.role === 'user');
   const todayInviteCode = getTodayInviteCode();
   const systems = [...new Set(localCheckItems.map(item => item.system))];
+
+  // 动态计算：总检查次数 = 所有记录 itemCount 之和
+  const totalChecks = storeCheckRecords.reduce((sum, r) => sum + r.itemCount, 0);
+  // 平均完成率 = 所有记录 completionRate 加权平均
+  const averageRate = storeCheckRecords.length > 0
+    ? Math.round(
+        storeCheckRecords.reduce((sum, r) => sum + r.completionRate * r.itemCount, 0) /
+        Math.max(1, storeCheckRecords.reduce((sum, r) => sum + r.itemCount, 0)) * 10
+      ) / 10
+    : 0;
+  // 故障总数 = 故障记录条数
+  const totalFaults = storeFaultRecords.length;
+
+  // 按用户聚合：每位用户完成了多少项
+  const aggregateUserStats = () => {
+    const map = new Map<string, { username: string; total: number; completed: number; faults: number }>();
+    storeCheckRecords.forEach(record => {
+      const existing = map.get(record.username);
+      if (existing) {
+        existing.total += record.itemCount;
+        existing.completed += record.completedCount;
+      } else {
+        map.set(record.username, {
+          username: record.username,
+          total: record.itemCount,
+          completed: record.completedCount,
+          faults: 0
+        });
+      }
+    });
+    // 再统计每个用户故障数
+    storeFaultRecords.forEach(fault => {
+      const existing = map.get(fault.username);
+      if (existing) {
+        existing.faults += 1;
+      } else {
+        map.set(fault.username, {
+          username: fault.username,
+          total: 0,
+          completed: 0,
+          faults: 1
+        });
+      }
+    });
+    return Array.from(map.values()).map(u => ({
+      username: u.username,
+      total: u.total,
+      completed: u.completed,
+      faults: u.faults,
+      rate: u.total > 0 ? Math.round((u.completed / u.total) * 1000) / 10 : 0
+    }));
+  };
 
   // 自动选择未检查的检查项
   const getUncheckedItems = (system: string, count: number): CheckItem[] => {
@@ -85,7 +137,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
     }
     // 按最近检查时间排序，优先选择未检查的
     const today = new Date().toISOString().split('T')[0];
-    const recentlyCheckedIds = localCheckRecords
+    const recentlyCheckedIds = storeCheckRecords
       .filter(r => r.date === today)
       .flatMap(r => {
         // 根据系统获取对应的检查项ID
@@ -181,15 +233,14 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   };
 
   const handleToggleUserStatus = (userId: string) => {
-    setLocalUsers(prev => prev.map(u => 
-      u.id === userId ? { ...u, isActive: u.isActive === false ? true : false } : u
-    ));
+    const user = registeredUsers.find(u => u.id === userId);
+    if (user) {
+      updateUser(userId, { isActive: user.isActive === false ? true : false });
+    }
   };
 
   const handlePromoteToAdmin = (userId: string) => {
-    setLocalUsers(prev => prev.map(u => 
-      u.id === userId ? { ...u, role: 'admin' as const } : u
-    ));
+    updateUser(userId, { role: 'admin' });
   };
 
   const handleAddVehicle = () => {
@@ -272,6 +323,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
           <div className="flex gap-1 overflow-x-auto">
             {[
               { key: 'dashboard', label: '数据看板' },
+              { key: 'faults', label: '故障记录' },
               { key: 'tasks', label: '任务管理' },
               { key: 'users', label: '用户管理' },
               { key: 'checkitems', label: '检查项管理' },
@@ -302,7 +354,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">总检查次数</p>
-                    <p className="text-3xl font-bold text-gray-800">910</p>
+                    <p className="text-3xl font-bold text-gray-800">{totalChecks}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-2xl">📊</span>
@@ -310,23 +362,26 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg p-6">
+              <button
+                onClick={() => setShowUserStatsModal(true)}
+                className="bg-white rounded-xl shadow-lg p-6 text-left hover:shadow-xl transition-all cursor-pointer hover:-translate-y-0.5"
+              >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-500 text-sm">平均完成率</p>
-                    <p className="text-3xl font-bold text-green-600">92.6%</p>
+                    <p className="text-gray-500 text-sm">平均完成率 <span className="text-blue-500 text-xs">点击查看详情 →</span></p>
+                    <p className="text-3xl font-bold text-green-600">{averageRate}%</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <span className="text-2xl">✅</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">故障总数</p>
-                    <p className="text-3xl font-bold text-red-600">51</p>
+                    <p className="text-3xl font-bold text-red-600">{totalFaults}</p>
                   </div>
                   <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                     <span className="text-2xl">⚠️</span>
@@ -430,126 +485,187 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
               <h3 className="text-lg font-semibold text-gray-800 mb-4">用户完成情况</h3>
               <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
                 <div>
-                  <h4 className="text-md font-medium text-gray-700 mb-3">每日任务</h4>
+                  <h4 className="text-md font-medium text-gray-700 mb-3">
+                    用户完成情况汇总 <span className="text-xs text-gray-400">（点击上方平均完成率卡片可查看相同数据）</span>
+                  </h4>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-2 px-4 font-medium text-gray-600">用户名</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">总任务</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">已完成</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">完成率</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userStats.map(stat => (
-                          <tr key={stat.userId} className="border-b border-gray-100">
-                            <td className="py-2 px-4">{stat.username}</td>
-                            <td className="text-center py-2 px-4">{stat.totalTasks}</td>
-                            <td className="text-center py-2 px-4">{stat.completedTasks}</td>
-                            <td className="text-center py-2 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                stat.completionRate >= 90 ? 'bg-green-100 text-green-700' :
-                                stat.completionRate >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>
-                                {stat.completionRate}%
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      const stats = aggregateUserStats();
+                      if (stats.length === 0) {
+                        return (
+                          <div className="py-8 text-center text-gray-400 text-sm">
+                            暂无用户完成记录
+                          </div>
+                        );
+                      }
+                      return (
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-2 px-4 font-medium text-gray-600">用户名</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">总检查项</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">已完成</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">故障数</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">完成率</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stats.map(stat => (
+                              <tr key={stat.username} className="border-b border-gray-100">
+                                <td className="py-2 px-4 font-medium text-gray-800">{stat.username}</td>
+                                <td className="text-center py-2 px-4 text-gray-700">{stat.total}</td>
+                                <td className="text-center py-2 px-4 text-green-700">{stat.completed}</td>
+                                <td className="text-center py-2 px-4 text-red-700">{stat.faults}</td>
+                                <td className="text-center py-2 px-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    stat.rate >= 90 ? 'bg-green-100 text-green-700' :
+                                    stat.rate >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-red-100 text-red-700'
+                                  }`}>{stat.rate}%</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-md font-medium text-gray-700 mb-3">每周任务</h4>
+                  <h4 className="text-md font-medium text-gray-700 mb-3">各系统完成情况</h4>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-2 px-4 font-medium text-gray-600">用户名</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">总任务</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">已完成</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">完成率</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userStats.map(stat => (
-                          <tr key={stat.userId} className="border-b border-gray-100">
-                            <td className="py-2 px-4">{stat.username}</td>
-                            <td className="text-center py-2 px-4">5</td>
-                            <td className="text-center py-2 px-4">4</td>
-                            <td className="text-center py-2 px-4">
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">80%</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      const systemTotals = new Map<string, { total: number; faults: number }>();
+                      storeCheckRecords.forEach(r => {
+                        const existing = systemTotals.get(r.system) || { total: 0, faults: 0 };
+                        existing.total += r.itemCount;
+                        systemTotals.set(r.system, existing);
+                      });
+                      storeFaultRecords.forEach(f => {
+                        const existing = systemTotals.get(f.system) || { total: 0, faults: 0 };
+                        existing.faults += 1;
+                        systemTotals.set(f.system, existing);
+                      });
+                      const systems = Array.from(systemTotals.entries());
+                      if (systems.length === 0) {
+                        return (
+                          <div className="py-8 text-center text-gray-400 text-sm">
+                            暂无系统完成数据
+                          </div>
+                        );
+                      }
+                      return (
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-2 px-4 font-medium text-gray-600">故障系统</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">总检查项</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">故障数</th>
+                              <th className="text-center py-2 px-4 font-medium text-gray-600">完成率</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {systems.map(([sys, data]) => {
+                              const completed = Math.max(0, data.total - data.faults);
+                              const rate = data.total > 0 ? Math.round((completed / data.total) * 1000) / 10 : 0;
+                              return (
+                                <tr key={sys} className="border-b border-gray-100">
+                                  <td className="py-2 px-4 font-medium text-gray-800">{sys}</td>
+                                  <td className="text-center py-2 px-4 text-gray-700">{data.total}</td>
+                                  <td className="text-center py-2 px-4 text-red-700">{data.faults}</td>
+                                  <td className="text-center py-2 px-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      rate >= 90 ? 'bg-green-100 text-green-700' :
+                                      rate >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>{rate}%</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-md font-medium text-gray-700 mb-3">全部检查项 - 各系统完成情况</h4>
+                  <h4 className="text-md font-medium text-gray-700 mb-3">各用户×各系统完成情况</h4>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-2 px-4 font-medium text-gray-600">用户名</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">智能驾驶</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">内饰</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">底盘</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">电气</th>
-                          <th className="text-center py-2 px-4 font-medium text-gray-600">车身</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userSystemCompletion.map(stat => (
-                          <tr key={stat.userId} className="border-b border-gray-100">
-                            <td className="py-2 px-4">{stat.username}</td>
-                            <td className="text-center py-2 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                stat.智能驾驶 >= 90 ? 'bg-green-100 text-green-700' :
-                                stat.智能驾驶 >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>{stat.智能驾驶}%</span>
-                            </td>
-                            <td className="text-center py-2 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                stat.内饰 >= 90 ? 'bg-green-100 text-green-700' :
-                                stat.内饰 >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>{stat.内饰}%</span>
-                            </td>
-                            <td className="text-center py-2 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                stat.底盘 >= 90 ? 'bg-green-100 text-green-700' :
-                                stat.底盘 >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>{stat.底盘}%</span>
-                            </td>
-                            <td className="text-center py-2 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                stat.电气 >= 90 ? 'bg-green-100 text-green-700' :
-                                stat.电气 >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>{stat.电气}%</span>
-                            </td>
-                            <td className="text-center py-2 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                stat.车身 >= 90 ? 'bg-green-100 text-green-700' :
-                                stat.车身 >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>{stat.车身}%</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      // 按 (username, system) 聚合
+                      const rows = new Map<string, string>();
+                      const userSet = new Set<string>();
+                      const systemSet = new Set<string>();
+                      const combined = new Map<string, { total: number; faults: number }>();
+                      storeCheckRecords.forEach(r => {
+                        userSet.add(r.username);
+                        systemSet.add(r.system);
+                        const key = `${r.username}__${r.system}`;
+                        const existing = combined.get(key) || { total: 0, faults: 0 };
+                        existing.total += r.itemCount;
+                        combined.set(key, existing);
+                      });
+                      storeFaultRecords.forEach(f => {
+                        userSet.add(f.username);
+                        systemSet.add(f.system);
+                        const key = `${f.username}__${f.system}`;
+                        const existing = combined.get(key) || { total: 0, faults: 0 };
+                        existing.faults += 1;
+                        combined.set(key, existing);
+                      });
+                      const usersArr = Array.from(userSet);
+                      const systemsArr = Array.from(systemSet);
+                      if (usersArr.length === 0) {
+                        return (
+                          <div className="py-8 text-center text-gray-400 text-sm">
+                            暂无检查数据
+                          </div>
+                        );
+                      }
+                      return (
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-2 px-3 font-medium text-gray-600">用户名</th>
+                              {systemsArr.map(sys => (
+                                <th key={sys} className="text-center py-2 px-3 font-medium text-gray-600">{sys}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {usersArr.map(username => (
+                              <tr key={username} className="border-b border-gray-100">
+                                <td className="py-2 px-3 font-medium text-gray-800 text-sm">{username}</td>
+                                {systemsArr.map(sys => {
+                                  const key = `${username}__${sys}`;
+                                  const data = combined.get(key);
+                                  if (!data || data.total === 0) {
+                                    return <td key={sys} className="text-center py-2 px-3 text-gray-300 text-sm">-</td>;
+                                  }
+                                  const completed = Math.max(0, data.total - data.faults);
+                                  const rate = Math.round((completed / data.total) * 1000) / 10;
+                                  return (
+                                    <td key={sys} className="text-center py-2 px-3 text-sm">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        rate >= 90 ? 'bg-green-100 text-green-700' :
+                                        rate >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-red-100 text-red-700'
+                                      }`}>{rate}%</span>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
@@ -787,6 +903,77 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
           </div>
         )}
 
+        {activeTab === 'faults' && (
+          <div className="bg-white rounded-xl shadow-lg p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6 sticky top-0 bg-white py-2 -mt-2 z-10">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">故障记录</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  共 {storeFaultRecords.length} 条故障记录
+                </p>
+              </div>
+              <div className="text-sm text-gray-500">
+                数据来源：用户在检查时提交的故障反馈
+              </div>
+            </div>
+
+            {storeFaultRecords.length === 0 ? (
+              <div className="py-16 text-center text-gray-400">
+                <div className="text-5xl mb-3">📋</div>
+                <p>暂无故障记录</p>
+                <p className="text-xs mt-2">用户在检查过程中提交的故障会显示在这里</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-3 font-medium text-gray-600">日期</th>
+                      <th className="text-left py-3 px-3 font-medium text-gray-600">人员</th>
+                      <th className="text-left py-3 px-3 font-medium text-gray-600">车型/配置</th>
+                      <th className="text-left py-3 px-3 font-medium text-gray-600">故障系统</th>
+                      <th className="text-left py-3 px-3 font-medium text-gray-600">检查项</th>
+                      <th className="text-left py-3 px-3 font-medium text-gray-600">故障描述</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {storeFaultRecords.map((fault, idx) => (
+                      <tr key={fault.id || idx} className="border-b border-gray-100 hover:bg-gray-50 align-top">
+                        <td className="py-3 px-3 text-sm text-gray-600 whitespace-nowrap">{fault.date}</td>
+                        <td className="py-3 px-3 text-sm">
+                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                            {fault.username}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-sm text-gray-700">
+                          <div>{fault.vehicleType}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {fault.powerType} · {fault.configuration}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-sm">
+                          <span className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
+                            {fault.system}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-sm text-gray-700">
+                          <div className="font-medium text-xs text-gray-500">{fault.checkItemSerial}</div>
+                          <div className="mt-0.5">{fault.description}</div>
+                        </td>
+                        <td className="py-3 px-3 text-sm text-gray-800">
+                          <div className="bg-red-50 p-2 rounded text-red-900 text-xs">
+                            {fault.faultDescription}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'checkitems' && (
           <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2">
             {/* 检查项检查记录 */}
@@ -797,6 +984,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-600">日期</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">人员</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-600">故障系统</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-600">检查项数</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-600">完成数</th>
@@ -804,9 +992,10 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {localCheckRecords.map(record => (
-                      <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">{record.date}</td>
+                    {storeCheckRecords.map((record, idx) => (
+                      <tr key={record.id || idx} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm">{record.date}</td>
+                        <td className="py-3 px-4 text-sm">{record.username}</td>
                         <td className="text-center py-3 px-4">
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
                             {record.system}
@@ -1232,6 +1421,83 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                   确认修改
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 用户完成情况弹窗（点击平均完成率打开） */}
+      {showUserStatsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-800">每位用户完成情况</h3>
+              <button
+                onClick={() => setShowUserStatsModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-x-auto flex-1">
+              {(() => {
+                const userStats = aggregateUserStats();
+                if (userStats.length === 0) {
+                  return (
+                    <div className="py-16 text-center text-gray-400">
+                      <div className="text-5xl mb-3">📊</div>
+                      <p>暂无用户完成记录</p>
+                      <p className="text-xs mt-2">用户完成检查后，数据会显示在这里</p>
+                    </div>
+                  );
+                }
+                return (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-3 font-medium text-gray-600">用户名</th>
+                        <th className="text-center py-3 px-3 font-medium text-gray-600">已检查项</th>
+                        <th className="text-center py-3 px-3 font-medium text-gray-600">完成项</th>
+                        <th className="text-center py-3 px-3 font-medium text-gray-600">故障数</th>
+                        <th className="text-center py-3 px-3 font-medium text-gray-600">完成率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userStats.map(u => (
+                        <tr key={u.username} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-3 font-medium text-gray-800">{u.username}</td>
+                          <td className="text-center py-3 px-3 text-gray-700">{u.total}</td>
+                          <td className="text-center py-3 px-3 text-green-700">{u.completed}</td>
+                          <td className="text-center py-3 px-3">
+                            <span className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
+                              {u.faults}
+                            </span>
+                          </td>
+                          <td className="text-center py-3 px-3">
+                            <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                              u.rate >= 90 ? 'bg-green-100 text-green-700' :
+                              u.rate >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {u.rate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            <div className="pt-4 border-t flex-shrink-0">
+              <button
+                onClick={() => setShowUserStatsModal(false)}
+                className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
+              >
+                关闭
+              </button>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { CheckItem, Task, User, SystemStats, VehicleStats, UserStats } from '../types';
+import { CheckItem, Task, User, SystemStats, VehicleStats, UserStats, FaultRecord } from '../types';
 
 export const checkItems: CheckItem[] = [
   {
@@ -147,30 +147,9 @@ export const checkItems: CheckItem[] = [
   }
 ];
 
-export const dailyTasks: Task[] = [
-  {
-    id: 'daily-1',
-    title: '每日功能检查',
-    description: '日常车辆功能点检任务',
-    type: 'daily',
-    checkItemIds: ['1', '2', '4', '5', '8', '9', '10'],
-    createdAt: new Date(),
-    startDate: new Date()
-  }
-];
+export const dailyTasks: Task[] = [];
 
-export const weeklyTasks: Task[] = [
-  {
-    id: 'weekly-1',
-    title: '周度全面检查',
-    description: '每周一次的全面车辆检查',
-    type: 'weekly',
-    checkItemIds: ['3', '6', '7', '11', '12'],
-    createdAt: new Date(),
-    startDate: new Date(),
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  }
-];
+export const weeklyTasks: Task[] = [];
 
 export const users: User[] = [
   {
@@ -191,12 +170,7 @@ export const systemStats: SystemStats[] = [
   { system: '车身', totalChecks: 0, failedChecks: 0, failureRate: 0 }
 ];
 
-export const vehicleStats: VehicleStats[] = [
-  { vehicleType: 'Model A', totalChecks: 0, completedChecks: 0, completionRate: 0 },
-  { vehicleType: 'Model B', totalChecks: 0, completedChecks: 0, completionRate: 0 },
-  { vehicleType: 'Model C', totalChecks: 0, completedChecks: 0, completionRate: 0 },
-  { vehicleType: 'Model D', totalChecks: 0, completedChecks: 0, completionRate: 0 }
-];
+export const vehicleStats: VehicleStats[] = [];
 
 export const userStats: UserStats[] = [];
 
@@ -204,7 +178,7 @@ export const vehicleTypes = ['Model A', 'Model B', 'Model C', 'Model D'];
 
 export const powerTypes = ['BEV', 'PHEV', 'REEV', 'ICE', 'HEV', '其他'];
 
-export const configurations = ['标准版', '舒适版', '豪华版', '尊贵型'];
+export const configurations = ['标准版', '舒适版', '尊贵型', '旗舰型'];
 
 export const generateInviteCode = (): string => {
   const today = new Date();
@@ -227,7 +201,16 @@ export const weeklyFaultData = [
   { week: '第7周', faults: 0 }
 ];
 
-export const dailyFaultBySystem = [
+export interface DailyFaultBySystem {
+  date: string;
+  智能驾驶: number;
+  内饰: number;
+  底盘: number;
+  电气: number;
+  车身: number;
+}
+
+export const dailyFaultBySystem: DailyFaultBySystem[] = [
   { date: '周一', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
   { date: '周二', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
   { date: '周三', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 },
@@ -237,11 +220,12 @@ export const dailyFaultBySystem = [
   { date: '周日', 智能驾驶: 0, 内饰: 0, 底盘: 0, 电气: 0, 车身: 0 }
 ];
 
-export const userSystemCompletion = [];
+export const userSystemCompletion: any[] = [];
 
 export interface CheckRecord {
   id: string;
   date: string;
+  username: string;
   system: string;
   itemCount: number;
   completedCount: number;
@@ -260,3 +244,5 @@ export interface TaskDispatchRecord {
 }
 
 export const taskDispatchRecords: TaskDispatchRecord[] = [];
+
+export const faultRecords: FaultRecord[] = [];

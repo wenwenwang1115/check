@@ -56,7 +56,7 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <header className="bg-white shadow-md flex-shrink-0">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="w-full mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="text-3xl">🚗</div>
             <div>
@@ -76,15 +76,15 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 flex-1 overflow-auto">
+      <main className="w-full mx-auto px-4 py-6 flex-1 overflow-auto">
         {mode === 'select' ? (
-          <div className="bg-white rounded-xl shadow-lg p-6 max-h-[80vh] overflow-y-auto">
-            <div className="flex gap-4 mb-6 sticky top-0 bg-white py-2 -mt-2">
+          <div className="bg-white rounded-2xl shadow-xl p-8 min-h-[75vh]">
+            <div className="flex gap-6 mb-8 sticky top-0 bg-white py-3 -mt-3 z-10">
               <button
                 onClick={() => setActiveTab('daily')}
-                className={`flex-1 py-3 rounded-lg font-medium transition-all ${
+                className={`flex-1 py-5 text-xl font-semibold rounded-xl transition-all ${
                   activeTab === 'daily'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -92,9 +92,9 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
               </button>
               <button
                 onClick={() => setActiveTab('all')}
-                className={`flex-1 py-3 rounded-lg font-medium transition-all ${
+                className={`flex-1 py-5 text-xl font-semibold rounded-xl transition-all ${
                   activeTab === 'all'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -105,10 +105,10 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
             {activeTab === 'daily' ? (
               showVehicleSelector ? (
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3">
                     每日任务
                   </h2>
-                  <p className="text-gray-500 mb-6">请先选择车辆信息</p>
+                  <p className="text-lg text-gray-500 mb-8">请先选择车辆信息</p>
                   <VehicleSelector
                     vehicleInfo={vehicleInfo}
                     onChange={setVehicleInfo}
@@ -116,14 +116,14 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
                   />
                 </div>
               ) : (
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div className="min-h-[60vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-gray-600">
+                    <span className="text-lg text-gray-600">
                       车辆：{vehicleInfo.vehicleType} / {vehicleInfo.powerType} / {vehicleInfo.configuration}
                     </span>
                     <button
                       onClick={() => setShowVehicleSelector(true)}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-base"
                     >
                       返回
                     </button>
@@ -134,10 +134,10 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
             ) : (
               !selectedSystem ? (
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3">
                     选择故障系统
                   </h2>
-                  <p className="text-gray-500 mb-6">
+                  <p className="text-lg text-gray-500 mb-8">
                     请选择要检查的系统
                   </p>
                   <SystemList
@@ -148,13 +148,13 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
                 </div>
               ) : showVehicleSelector ? (
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3">
                     {selectedSystem} - 检查项
                   </h2>
-                  <p className="text-gray-500 mb-6">
+                  <p className="text-lg text-gray-500 mb-6">
                     已选择系统：{selectedSystem}，共 {getCheckItemsBySystem(selectedSystem).length} 个检查项
                   </p>
-                  <p className="text-gray-500 mb-4">请先选择车辆信息</p>
+                  <p className="text-lg text-gray-500 mb-8">请先选择车辆信息</p>
                   <VehicleSelector
                     vehicleInfo={vehicleInfo}
                     onChange={setVehicleInfo}
@@ -162,19 +162,19 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
                   />
                   <button
                     onClick={() => setSelectedSystem(null)}
-                    className="mt-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                    className="mt-6 px-5 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-base"
                   >
                     返回选择系统
                   </button>
                 </div>
               ) : (
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div className="min-h-[60vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <span className="text-gray-600">
+                      <span className="text-lg text-gray-600">
                         车辆：{vehicleInfo.vehicleType} / {vehicleInfo.powerType} / {vehicleInfo.configuration}
                       </span>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                      <span className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-base">
                         {selectedSystem}
                       </span>
                     </div>
@@ -183,7 +183,7 @@ export const UserHome: React.FC<UserHomeProps> = ({ onNavigate }) => {
                         setSelectedSystem(null);
                         setShowVehicleSelector(true);
                       }}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-base"
                     >
                       返回
                     </button>
