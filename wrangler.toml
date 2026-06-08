@@ -1,24 +1,21 @@
-{
-  "build": {
-    "command": "npm run build",
-    "publishDir": "dist"
-  },
-  "env": {
-    "VITE_API_URL": "/"
-  },
-  "functions": {
-    "api/index.ts": {
-      "runtime": "@cloudflare/nodejs"
-    }
-  },
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
-}
+name = "check-system"
+type = "pages"
+
+[build]
+command = "npm run build"
+publish = "dist"
+
+[functions]
+"api/*" = { type = "worker", main = "src/worker.ts" }
+
+[[redirects]]
+from = "/api/*"
+to = "/api/:splat"
+status = 200
+
+[[headers]]
+for = "/*"
+[headers.values]
+Access-Control-Allow-Origin = "*"
+Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+Access-Control-Allow-Headers = "Content-Type, Authorization"
