@@ -26,10 +26,10 @@ type TabType = 'dashboard' | 'tasks' | 'users' | 'checkitems' | 'vehicles' | 'se
 
 export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const { currentUser, logout, registeredUsers, updateUser } = useAuthStore();
+  const storeState = useCheckStore();
   const { 
     checkRecords: storeCheckRecords, 
     faultRecords: storeFaultRecords,
-    checkItems: storeCheckItems,
     setCheckItems,
     deleteCheckItem,
     setDailyTaskIds,
@@ -38,8 +38,10 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
     addSystem,
     updateSystem,
     deleteSystem,
-    addCheckItem
-  } = useCheckStore();
+    addCheckItem,
+    updateCheckItem
+  } = storeState;
+  const storeCheckItems = Array.isArray(storeState.checkItems) ? storeState.checkItems : [];
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showAddCheckItemModal, setShowAddCheckItemModal] = useState(false);
