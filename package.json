@@ -12,7 +12,8 @@
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
-    "start": "node api/dist/server.js"
+    "start": "node api/dist/server.js",
+    "build:zip": "npm run build && powershell -Command \"Compress-Archive -Path 'dist\\*' -DestinationPath 'dist.zip' -Force\""
   },
   "dependencies": {
     "clsx": "^2.1.1",
