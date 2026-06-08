@@ -1,0 +1,47 @@
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* 滚动容器 */
+.scroll-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.scroll-container-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 最大高度限制 */
+.max-h-screen-80 {
+  max-height: 80vh;
+}
+
+.max-h-screen-70 {
+  max-height: 70vh;
+}
+
+.max-h-screen-60 {
+  max-height: 60vh;
+}
+
+.max-h-screen-50 {
+  max-height: 50vh;
+}

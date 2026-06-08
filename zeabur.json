@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/zeabur.json",
+  "services": [
+    {
+      "name": "check-system",
+      "path": ".",
+      "buildCommand": "npm install && npm run build",
+      "startCommand": "npm run preview",
+      "outputDirectory": "dist",
+      "healthCheckPath": "/",
+      "env": [
+        {
+          "key": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "key": "VITE_API_URL",
+          "value": "/api"
+        }
+      ]
+    }
+  ]
+}
