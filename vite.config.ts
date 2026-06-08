@@ -32,7 +32,6 @@ export default defineConfig({
       }
     }
   },
-  base: '/check/',
   build: {
     outDir: 'dist'
   }
