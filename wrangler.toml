@@ -1,0 +1,24 @@
+{
+  "build": {
+    "command": "npm run build",
+    "publishDir": "dist"
+  },
+  "env": {
+    "VITE_API_URL": "/"
+  },
+  "functions": {
+    "api/index.ts": {
+      "runtime": "@cloudflare/nodejs"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
