@@ -1307,7 +1307,6 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
                             <div className="flex gap-2">
                               <input
                                 type="file"
-                                ref={fileInputRef}
                                 accept=".xlsx,.xls,.csv"
                                 onChange={(e) => handleExcelUpload(e, system)}
                                 className="hidden"
