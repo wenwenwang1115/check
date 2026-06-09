@@ -51,7 +51,6 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingCheckItem, setEditingCheckItem] = useState<CheckItem | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<string | null>(null);
-  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   // 新任务表单 - 改为按数量选择
   const [newTask, setNewTask] = useState({
